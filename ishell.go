@@ -36,6 +36,7 @@ type Shell struct {
 	ignoreCase     bool
 	haltChan       chan struct{}
 	historyFile    string
+	eofHandler     eofHandler
 }
 
 // New creates a new shell with default settings. Uses standard output and default prompt ">> ".
@@ -57,6 +58,9 @@ func New() *Shell {
 		},
 		writer:   os.Stdout,
 		haltChan: make(chan struct{}),
+		eofHandler: func() {
+			fmt.Println("EOF")
+		},
 	}
 	addDefaultFuncs(shell)
 	return shell
@@ -92,7 +96,7 @@ shell:
 			continue shell
 		}
 		if err == io.EOF {
-			fmt.Println("EOF")
+			s.eofHandler()
 			break
 		} else if err != nil && err != readline.ErrInterrupt {
 			s.Println("Error:", err)
@@ -364,6 +368,12 @@ func (s *Shell) RegisterGeneric(function CmdFunc) {
 // RegisterInterrupt registers a function to handle keyboard interrupt.
 func (s *Shell) RegisterInterrupt(function CmdFunc) {
 	s.interrupt = function
+}
+
+type eofHandler func()
+
+func (s *Shell) RegisterEofHandler(f eofHandler) {
+	s.eofHandler = f
 }
 
 // SetPrompt sets the prompt string. The string to be displayed before the cursor.
